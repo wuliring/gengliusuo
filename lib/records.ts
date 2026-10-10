@@ -13,11 +13,27 @@ export const recordSchema = z.object({
   evidence: z.array(z.object({ label: z.string().trim().max(240), value: z.string().max(240).nullable(), period: z.string().max(120), sourceUrl: z.string().max(2000) })).max(20),
   status: z.enum(statuses).default("draft"),
 }).superRefine((r,ctx) => { if (r.status !== "published") return;
-  for (const f of ["summary","definition","origin","spread"] as const) if (!r[f]) ctx.addIssue({code:"custom",path:[f],message:"发布前请补全摘要、含义、来源和传播记录"});
-  if (!r.sources.length || !r.evidence.length) ctx.addIssue({code:"custom",path:["sources"],message:"发布前至少添加一个来源和一项传播证据"});
-  r.sources.forEach((s,i)=>{if(!s.title||!safeUrl.safeParse(s.url).success)ctx.addIssue({code:"custom",path:["sources",i],message:"发布前请补全来源标题和有效的 HTTPS 链接"});});
-  r.evidence.forEach((s,i)=>{if(!s.label||!safeUrl.safeParse(s.sourceUrl).success)ctx.addIssue({code:"custom",path:["evidence",i],message:"发布前请补全传播证据名称和有效的 HTTPS 来源链接"});});
+  for (const f of ["summary","definition","origin","spread"] as const) if (!r[f]) ctx.addIssue({code:"custom",path:[f],message:"发布前请补全此项内容"});
+  if (!r.sources.length) ctx.addIssue({code:"custom",path:["sources"],message:"发布前至少添加一个来源"});
+  if (!r.evidence.length) ctx.addIssue({code:"custom",path:["evidence"],message:"发布前至少添加一项传播证据"});
+  r.sources.forEach((s,i)=>{if(!s.title)ctx.addIssue({code:"custom",path:["sources",i,"title"],message:"发布前请填写来源标题"});if(!safeUrl.safeParse(s.url).success)ctx.addIssue({code:"custom",path:["sources",i,"url"],message:"发布前请填写有效的 HTTPS 链接，且不能含登录信息"});});
+  r.evidence.forEach((s,i)=>{if(!s.label)ctx.addIssue({code:"custom",path:["evidence",i,"label"],message:"发布前请填写证据名称"});if(!safeUrl.safeParse(s.sourceUrl).success)ctx.addIssue({code:"custom",path:["evidence",i,"sourceUrl"],message:"发布前请填写有效的 HTTPS 来源链接，且不能含登录信息"});});
 });
+export type RecordIssue={path:(string|number)[];message:string};
+const fieldLabels:Record<string,string>={id:"档案地址",name:"梗名",aliases:"别名",category:"分类",period:"流行时期与口径",year:"流行记录年份",summary:"一句话摘要",definition:"含义",origin:"来历",spread:"传播记录",usage:"用法示例",cautions:"读梗小注",related:"关联档案",sources:"来源",evidence:"传播证据",title:"标题",url:"来源链接",type:"来源类型",note:"来源说明",label:"证据名称",value:"数值或结果",sourceUrl:"证据链接",status:"状态",expectedRevision:"修订版本",format:"文件格式",formatVersion:"格式版本"};
+export function formatRecordIssues(issues:z.ZodIssue[]):RecordIssue[]{return issues.map(issue=>{
+ const path=issue.path[0]==="record"?issue.path.slice(1):issue.path,labels:string[]=[];
+ for(let i=0;i<path.length;i++){const key=path[i];if(key==="records"&&typeof path[i+1]==="number"){labels.push(`第 ${Number(path[++i])+1} 份档案`);continue;}if(typeof key==="string"&&fieldLabels[key]){let label=fieldLabels[key];if(typeof path[i+1]==="number")label+=` ${Number(path[++i])+1}`;labels.push(label);}}
+ let message=issue.message;
+ if(issue.code==="too_big")message=issue.type==="array"?`最多 ${issue.maximum} 项，请减少后再保存。`:issue.type==="number"?`不能大于 ${issue.maximum}。`:`最多 ${issue.maximum} 字，请缩短后再保存。`;
+ else if(issue.code==="too_small")message=issue.type==="array"?`至少需要 ${issue.minimum} 项。`:issue.type==="number"?`不能小于 ${issue.minimum}。`:`请填写内容（至少 ${issue.minimum} 字）。`;
+ else if(issue.code==="invalid_type")message=issue.expected==="number"?"请填写有效的整数年份或留空。":"字段缺失或格式不正确，请重新填写。";
+ else if(issue.code==="invalid_enum_value")message="请选择列表中的有效选项。";
+ else if(issue.code==="invalid_literal")message="备份文件格式或版本不受支持。";
+ else if(issue.code==="invalid_string"&&!/[\u4e00-\u9fff]/.test(message))message="格式不正确，请检查后重试。";
+ return {path,message:`${labels.join(" · ")||"档案内容"}：${message}`};
+});}
+export function sourceHref(value:string):string|null {try{const url=new URL(value);return url.protocol==="https:"&&!url.username&&!url.password?url.href:null;}catch{return null;}}
 export type Meme = z.infer<typeof recordSchema>;
 export type StoredMeme = Meme & {revision:number;updatedAt:string;views:number};
 export type ArchiveQuery = {q?:string;category?:string;year?:string;sort?:string;page?:number;status?:string};

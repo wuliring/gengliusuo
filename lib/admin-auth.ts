@@ -1,8 +1,9 @@
 import {env} from "cloudflare:workers";
-import {getChatGPTUser} from "@/app/chatgpt-auth";
+import {getChatGPTUser,requireChatGPTUser} from "@/app/chatgpt-auth";
 import {ArchiveError} from "./archive-db";
 export async function isEditor(){const user=await getChatGPTUser(),email=env.ADMIN_EMAIL;return !!(user&&typeof email==="string"&&user.email.toLowerCase()===email.toLowerCase());}
 export async function requireEditor(){if(!await isEditor())throw new ArchiveError("只有档案管理员可以进行这项操作。",403);}
+export async function canEditPage(returnTo:string){const user=await requireChatGPTUser(returnTo),email=env.ADMIN_EMAIL;return typeof email==="string"&&user.email.toLowerCase()===email.toLowerCase();}
 export function requireSameOrigin(req:Request){const origin=req.headers.get("origin"),site=typeof env.SITE_URL==="string"?new URL(env.SITE_URL).origin:new URL(req.url).origin;if(!origin||origin!==site)throw new ArchiveError("请求来源无法确认，请回到网站后重试。",403);}
 export async function boundedJson(req:Request,maxBytes=100000){const reader=req.body?.getReader();if(!reader)throw new ArchiveError("请求内容为空。",400);const chunks:Uint8Array[]= [];let size=0;while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>maxBytes){await reader.cancel();throw new ArchiveError("内容过大，请拆分后再导入或缩短档案文字。",413);}chunks.push(value);}const data=new Uint8Array(size);let offset=0;for(const c of chunks){data.set(c,offset);offset+=c.byteLength;}try{return JSON.parse(new TextDecoder().decode(data));}catch{throw new ArchiveError("请求格式有误，请重新保存。",400);}}
 export function routeError(error:unknown){if(error instanceof ArchiveError)return Response.json({error:error.message},{status:error.status,headers:{"Cache-Control":"no-store"}});console.error("archive_request_failed",error);return Response.json({error:"暂时无法完成，请稍后重试。你的编辑内容仍然保留。"},{status:503,headers:{"Cache-Control":"no-store"}});}
