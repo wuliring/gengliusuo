@@ -79,10 +79,12 @@ export function ReaderProvider({children}:{children:React.ReactNode}){
   alive.current=true;void refresh().catch(()=>{});
   function changed(event:StorageEvent){if(event.key!==storageKey)return;const local=readGuest();guestRef.current=local;setGuestCount(local.length);if(authRef.current===false){applyEntries(local);void lookup(local.map(entry=>entry.id)).catch(cause=>setError(cause instanceof Error?cause.message:"本机档案资料未完成更新。"));}}
   function suspended(){sessionEpoch.current++;needsIdentityRefresh.current=true;}
+  function protectUnpersistedGuest(event:BeforeUnloadEvent){if(!guestChanges.current.length)return;event.preventDefault();event.returnValue="";}
   function focused(){if(document.visibilityState!=="visible"){suspended();return;}if(locked.current){needsIdentityRefresh.current=true;return;}needsIdentityRefresh.current=false;void refresh().catch(()=>{});}
   window.addEventListener("storage",changed);
+  window.addEventListener("beforeunload",protectUnpersistedGuest);
   window.addEventListener("focus",focused);window.addEventListener("blur",suspended);document.addEventListener("visibilitychange",focused);
-  return()=>{alive.current=false;window.removeEventListener("storage",changed);window.removeEventListener("focus",focused);window.removeEventListener("blur",suspended);document.removeEventListener("visibilitychange",focused);};
+  return()=>{alive.current=false;window.removeEventListener("storage",changed);window.removeEventListener("beforeunload",protectUnpersistedGuest);window.removeEventListener("focus",focused);window.removeEventListener("blur",suspended);document.removeEventListener("visibilitychange",focused);};
  },[refresh,readGuest,applyEntries,lookup]);
  function requireReady(){if(authRef.current===null)throw new Error("档案夹尚未载入，请先重试加载。");}
  function rememberRecord(record:StoredMeme){setRecordMap(current=>new Map(current).set(record.id,record));}
