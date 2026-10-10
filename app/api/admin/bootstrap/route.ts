@@ -1,0 +1,4 @@
+import {env} from "cloudflare:workers";
+import {initializeArchive,archiveStats,ArchiveError} from "@/lib/archive-db";
+import {routeError} from "@/lib/admin-auth";
+export async function POST(request:Request){try{const secret=env.ARCHIVE_IMPORT_SECRET,supplied=request.headers.get("x-archive-import-key");if(typeof secret!=="string"||!supplied||supplied.length!==64)throw new ArchiveError("导入入口未开放。",403);const [a,b]=await Promise.all([crypto.subtle.digest("SHA-256",new TextEncoder().encode(secret)),crypto.subtle.digest("SHA-256",new TextEncoder().encode(supplied))]);let difference=0;const left=new Uint8Array(a),right=new Uint8Array(b);for(let i=0;i<left.length;i++)difference|=left[i]^right[i];if(difference)throw new ArchiveError("导入入口未开放。",403);await initializeArchive();const stats=await archiveStats();return Response.json({initialized:true,records:stats.total,categories:stats.counts},{headers:{"Cache-Control":"no-store"}});}catch(error){return routeError(error);}}

@@ -1,0 +1,5 @@
+import {z} from "zod";
+import {recordSchema} from "@/lib/records";
+import {importRecords,ArchiveError} from "@/lib/archive-db";
+import {requireEditor,requireSameOrigin,boundedJson,routeError} from "@/lib/admin-auth";
+export async function POST(req:Request){try{await requireEditor();requireSameOrigin(req);const raw=await boundedJson(req,5000000);const envelope=z.object({format:z.literal("gengliusuo-archive"),formatVersion:z.literal(1),records:z.array(z.unknown()).min(1).max(100)}).safeParse(raw);if(!envelope.success)throw new ArchiveError("请选择梗留所导出的备份文件，每次最多导入 100 份档案。",400);const records=envelope.data.records.map(value=>recordSchema.parse({...z.object({}).passthrough().parse(value),status:"draft"}));if(new Set(records.map(r=>r.id)).size!==records.length)throw new ArchiveError("文件中有重复档案地址，请先整理。",400);return Response.json(await importRecords(records),{headers:{"Cache-Control":"no-store"}});}catch(e){if(e instanceof z.ZodError)return Response.json({error:"文件中的档案字段不完整或链接格式有误，请检查后重试。"},{status:400});return routeError(e);}}
