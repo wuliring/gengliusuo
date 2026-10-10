@@ -53,6 +53,7 @@
 
    ```powershell
    node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_watery_argent.sql
+   node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_past_juggernaut.sql
    ```
 
    已经应用的迁移不要重复执行。这个命令只作用于本地 D1。首次读取档案时，应用会自动将 `data/seed.json` 中尚不存在的记录导入，已有记录不会被覆盖。
@@ -102,3 +103,14 @@
 编辑器保存期间锁定输入，离开未保存的内容会提示；载入历史保留当前发布状态，状态切换由独立按钮完成。发生修订冲突时，可下载当前编辑留底、查看最新或确认后载入服务器版本。字段错误提供对应页签和输入项的定位入口，阅读预览包含完整来源与证据。
 
 管理员登录后回到原页面。备份与补回页面同时提供导出；整份文件预校验后，按每批最多100条、低于4.5MB自动拆分，失败后可以继续未完成批次。
+
+## 探索与个人档案夹
+
+- `/collections`：六个策展专题，组织声音、游戏、职场情绪、自我安慰、弹幕回应和名场面；按分类/年份筛选，只显示当前公开档案。
+- `/library`：收藏、收藏未读、手动已读和最近足迹。游客记录保存在当前浏览器；登录后使用独立的账号状态。游客合并需要确认，可导出个人JSON、导入到游客桶、移除引用和清除足迹。
+- `/random`：随机选取已发布档案，详情页可排除当前档案继续发现。
+- `/updates` 与 `/feed.xml`：本站最近修订与RSS公开摘要，不包含草稿、旧历史或个人数据。
+
+账号状态保存到新增的`reader_records`表，接口只使用当前可信登录身份派生的所有者键，不接收用户身份参数、不返回邮箱或原始用户ID。个人数据不缓存；游客记录与云端数据分开，不会将云端集合复制到游客存储。最多保留500份个人状态，游客合并采用分批和幂等更新。浏览器限制存储时会提示暂存，并保留游客导出入口；支持Web Locks的浏览器协调多标签写入。
+
+首次空的本地数据库需按顺序应用两份SQL迁移。升级时只应用尚未执行的迁移，勿重放旧表创建语句。托管平台上线前应用新迁移。源码包含结构与初始文化档案，不包含任何用户的账号收藏、阅读足迹或线上数据库副本。

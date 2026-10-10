@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import {ReaderProvider} from "@/components/archive/reader-provider";
+import {publicSiteOrigin} from "@/lib/public-url";
 
 export const metadata: Metadata = {
   title: {default:"梗留所 · 中文互联网热梗档案馆",template:"%s · 梗留所"},
@@ -8,6 +10,7 @@ export const metadata: Metadata = {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
   },
+  alternates: {types:{"application/rss+xml":`${publicSiteOrigin()}/feed.xml`}},
 };
 
 export default function RootLayout({
@@ -17,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased"><ReaderProvider>{children}</ReaderProvider></body>
     </html>
   );
 }

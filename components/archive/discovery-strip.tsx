@@ -1,0 +1,2 @@
+import Link from "next/link";
+export function DiscoveryStrip(){return <nav className="discovery-strip" aria-label="更多逛馆方式"><Link href="/collections"><span>01 / CURATED</span><strong>走进专题展柜 ↗</strong><small>把同一种声音与情绪串起来。</small></Link><a href="/random"><span>02 / A SURPRISE</span><strong>随机逛一个梗 ↗</strong><small>让一份已公开的档案带路。</small></a><Link href="/library"><span>03 / YOUR SHELF</span><strong>我的档案夹 ↗</strong><small>收藏、待读与读过的记忆。</small></Link><Link href="/updates"><span>04 / REVISIONS</span><strong>看看最近修订 ↗</strong><small>沿着新的出处继续读，支持订阅。</small></Link></nav>;}

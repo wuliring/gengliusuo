@@ -33,6 +33,13 @@ export async function listRecords(query:ArchiveQuery={},admin=false){
 }
 export async function archiveStats(){const db=await initialized();const grouped=await db.prepare("SELECT category,COUNT(*) AS count FROM records WHERE status='published' GROUP BY category").all<{category:string;count:number}>();const years=await db.prepare("SELECT DISTINCT year FROM records WHERE status='published' AND year IS NOT NULL ORDER BY year DESC").all<{year:number}>();return {counts:Object.fromEntries(grouped.results.map(r=>[r.category,r.count])),total:grouped.results.reduce((s,r)=>s+r.count,0),years:years.results.map(r=>r.year)};}
 export async function getRecord(id:string,admin=false){const db=await initialized();const row=await db.prepare(`SELECT id,body,revision,updated_at,views FROM records WHERE id=?1 ${admin?"":"AND status='published'"}`).bind(id).first<Row>();return row?decode(row):null;}
+export async function getPublishedByIds(input:string[]):Promise<StoredMeme[]>{
+ const ids=[...new Set(input)].filter(id=>/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)&&id.length<=80).slice(0,500);
+ if(!ids.length)return [];
+ const db=await initialized(),found=new Map<string,StoredMeme>();
+ for(let start=0;start<ids.length;start+=80){const group=ids.slice(start,start+80),placeholders=group.map((_,index)=>`?${index+1}`).join(","),result=await db.prepare(`SELECT id,body,revision,updated_at,views FROM records WHERE status='published' AND id IN (${placeholders})`).bind(...group).all<Row>();for(const row of result.results)found.set(row.id,decode(row));}
+ return ids.flatMap(id=>found.has(id)?[found.get(id)!]:[]);
+}
 export async function saveRecord(r:Meme,expected:number|null){
  const db=await initialized(),stamp=new Date().toISOString(),body=JSON.stringify(r);
  if(expected===null){if(await getRecord(r.id,true))throw new ArchiveError("这个档案地址已存在，请换一个地址。",409);await db.batch([
